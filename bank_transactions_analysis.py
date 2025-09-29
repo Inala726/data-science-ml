@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 # Load the dataset
 data = pd.read_csv('bank_transactions_data_2.csv')
 
@@ -151,9 +151,54 @@ data = pd.read_csv('bank_transactions_data_2.csv')
 # plt.xticks(rotation=45)
 # plt.show()
 
-plt.figure(figsize=(8,6))
-sns.boxplot(x='Channel', y='LoginAttempts', data=data)
-plt.title("Login Attempts by Transaction Channel")
-plt.xlabel("Transaction Channel")
-plt.ylabel("Login Attempts")
-plt.show()
+# plt.figure(figsize=(8,6))
+# sns.boxplot(x='Channel', y='LoginAttempts', data=data)
+# plt.title("Login Attempts by Transaction Channel")
+# plt.xlabel("Transaction Channel")
+# plt.ylabel("Login Attempts")
+# plt.show()
+
+# correlation heatmap between numerical columsns
+# Select numeric features only
+# numeric_cols = ['TransactionAmount', 'CustomerAge', 'TransactionDuration', 'LoginAttempts', 'AccountBalance']
+
+# # Correlation matrix
+# corr = data[numeric_cols].corr()
+
+# # Heatmap
+# plt.figure(figsize=(8,6))
+# sns.heatmap(corr, annot=True, cmap='coolwarm', fmt=".2f")
+# plt.title("Correlation Heatmap of Numeric Features")
+# plt.show()
+
+# Feature Engineering
+data_model = data.copy()
+drop_cols = [
+    "TransactionID", "AccountID", "TransactionDate",
+    "PreviousTransactionDate", "IP Address", "Amount_Z_Score"
+]
+data_model.drop(columns=[c for c in drop_cols if c in data_model.columns], inplace=True)
+data_model
+
+avg_tx_amount_by_type = data_model.groupby("TransactionType")["TransactionAmount"].transform("mean")
+data_model["Amount_to_AvgByType_Ratio"] = data_model["TransactionAmount"] / avg_tx_amount_by_type
+
+# Device transaction count
+device_tx_count = data_model.groupby("DeviceID").size().reset_index(name="DeviceTxCount")
+data_model = data_model.merge(device_tx_count, on="DeviceID", how="left")
+
+categorical_cols = data_model.select_dtypes(include=["object"]).columns.tolist()
+le = LabelEncoder()
+for col in categorical_cols:
+    data_model[col] = le.fit_transform(data_model[col])
+
+categorical_cols = data_model.select_dtypes(include=["object"]).columns.tolist()
+le = LabelEncoder()
+for col in categorical_cols:
+    data_model[col] = le.fit_transform(data_model[col])
+
+scaler = StandardScaler()
+df_scaled = scaler.fit_transform(data_model)
+df_scaled_df = pd.DataFrame(df_scaled, columns=data_model.columns)
+
+print(f"Final dataset shape: {data_model.shape}")
